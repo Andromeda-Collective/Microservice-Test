@@ -1,23 +1,11 @@
-# ──────────────────────────────────────────────
-# docker-compose.yml
-#
-# Architecture:
-#   - Two networks: public (nginx ↔ host) and internal (all services)
-#   - Only nginx publishes ports (80/443) to the host
-#   - All microservices and infra are on the internal network only
-#   - Infra services (postgres, sqlserver, redis) use the "infra"
-#     profile — they only start with: docker compose --profile infra up
-#
-# Networks:
-#   public    — nginx ↔ host (ports 80, 443)
-#   internal  — nginx ↔ gateway ↔ microservices ↔ infra
-# ──────────────────────────────────────────────
+
 
 services:
 
   # ──────────────────────────────────────────
   # nginx — external web server / reverse proxy
   # ──────────────────────────────────────────
+
   nginx:
     build:
       context: ./infra/nginx
@@ -40,6 +28,7 @@ services:
   # ──────────────────────────────────────────
   # Frontend — React static site served by nginx-alpine
   # ──────────────────────────────────────────
+
   frontend:
     build:
       context: ./Frontend
@@ -48,11 +37,11 @@ services:
     restart: unless-stopped
     networks:
       - internal
-    # No published ports — only accessible via nginx
 
   # ──────────────────────────────────────────
   # Gateway — .NET API gateway
   # ──────────────────────────────────────────
+
   gateway:
     build:
       context: ./Gateway
@@ -64,11 +53,12 @@ services:
       - ASPNETCORE_URLS=http://+:8080
     networks:
       - internal
-    # No published ports — only accessible via nginx
+
 
   # ──────────────────────────────────────────
   # cart-service — Django / Python
   # ──────────────────────────────────────────
+
   cart-service:
     build:
       context: ./Services/cart-service
@@ -83,11 +73,11 @@ services:
       - DJANGO_SETTINGS_MODULE=config.settings
     networks:
       - internal
-    # No published ports — only accessible via gateway
 
   # ──────────────────────────────────────────
   # product-service — Django / Python
   # ──────────────────────────────────────────
+
   product-service:
     build:
       context: ./Services/product-service
@@ -102,11 +92,11 @@ services:
       - DJANGO_SETTINGS_MODULE=config.settings
     networks:
       - internal
-    # No published ports — only accessible via gateway
 
   # ──────────────────────────────────────────
   # user-service — .NET / C#
   # ──────────────────────────────────────────
+
   user-service:
     build:
       context: ./Services/user-service
@@ -118,7 +108,6 @@ services:
       - ASPNETCORE_URLS=http://+:8080
     networks:
       - internal
-    # No published ports — only accessible via gateway
 
   # ──────────────────────────────────────────
   # INFRA SERVICES (profile: infra)
@@ -186,6 +175,7 @@ services:
 # ──────────────────────────────────────────
 # Networks
 # ──────────────────────────────────────────
+
 networks:
   public:
     driver: bridge
@@ -198,6 +188,7 @@ networks:
 # ──────────────────────────────────────────
 # Volumes (persistent data for infra services)
 # ──────────────────────────────────────────
+
 volumes:
   pgdata:
   sqldata:

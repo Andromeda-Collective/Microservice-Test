@@ -1,12 +1,3 @@
-# ──────────────────────────────────────────────
-# GitHub Actions — CI only (no CD)
-#
-# On push/PR to main or develop:
-#   1. Lint & format check (Python: ruff, .NET: dotnet format)
-#   2. Build Docker images (dry-run — no push to registry)
-#   3. Run tests if available
-# ──────────────────────────────────────────────
-
 name: CI
 
 on:
