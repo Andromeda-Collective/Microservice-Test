@@ -1,0 +1,389 @@
+# پیش‌نیازها و راهنمای راه‌اندازی — ویندوز / لینوکس / مک
+
+---
+
+## ⚠️ نکته مهم درباره پوشه‌های خالی Infra
+
+به دلیل اینکه Git پوشه‌های خالی را ذخیره نمی‌کند، سه پوشه زیر در مسیر `infra` در ریپازیتوری Push نشده‌اند.
+
+لطفاً بعد از Clone کردن پروژه، این پوشه‌ها را به‌صورت دستی ایجاد کنید:
+
+```text
+infra/postgres
+infra/redis
+infra/sqlserver
+```
+
+### ساخت پوشه‌ها
+
+**ویندوز**
+
+```powershell
+mkdir infra\postgres
+mkdir infra\redis
+mkdir infra\sqlserver
+```
+
+**لینوکس / مک**
+
+```bash
+mkdir -p infra/postgres infra/redis infra/sqlserver
+```
+
+یا به‌صورت یکجا:
+
+```bash
+mkdir -p infra/{postgres,redis,sqlserver}
+```
+
+---
+
+# ۱. نرم‌افزارهای مورد نیاز
+
+## ویندوز
+
+| نرم‌افزار       | نسخه حداقل | لینک دانلود                                |
+| --------------- | ---------- | ------------------------------------------ |
+| Docker Desktop  | آخرین نسخه | https://docker.com/products/docker-desktop |
+| Git for Windows | آخرین نسخه | https://git-scm.com/download/win           |
+| PowerShell      | 7+         | https://github.com/PowerShell/PowerShell   |
+
+### بررسی نصب
+
+```powershell
+docker --version
+git --version
+docker compose version
+```
+
+> Docker Desktop باید با WSL2 یا Hyper-V فعال باشد.
+
+---
+
+## لینوکس (Ubuntu / Debian)
+
+```bash
+# Docker
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+
+# لاگ‌اوت و لاگین مجدد
+
+# Docker Compose
+docker compose version
+
+# OpenSSL
+openssl version
+
+# Git
+sudo apt install git -y
+```
+
+---
+
+## مک (macOS)
+
+```bash
+# Docker Desktop
+brew install --cask docker
+
+# یا از سایت:
+# https://docker.com/products/docker-desktop
+
+# OpenSSL
+brew install openssl
+
+# Git
+git --version
+```
+
+---
+
+# ۲. تنظیم فایل Hosts (ساب‌دامین‌های محلی)
+
+Nginx به دو ساب‌دامین زیر نیاز دارد:
+
+```text
+www.localhost
+api.localhost
+```
+
+## ویندوز
+
+PowerShell را با دسترسی Administrator اجرا کنید:
+
+```powershell
+Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "`n127.0.0.1 localhost www.localhost api.localhost"
+```
+
+یا فایل زیر را با Notepad (Run as Administrator) باز کنید:
+
+```text
+C:\Windows\System32\drivers\etc\hosts
+```
+
+و این خط را اضافه کنید:
+
+```text
+127.0.0.1 localhost www.localhost api.localhost
+```
+
+## لینوکس / مک
+
+```bash
+sudo bash -c 'echo "127.0.0.1 localhost www.localhost api.localhost" >> /etc/hosts'
+```
+
+---
+
+# ۳. ساخت گواهی SSL محلی (Self-Signed)
+
+## ویندوز — روش اول (OpenSSL داخل Git)
+
+```powershell
+mkdir infra\nginx\ssl
+
+& "C:\Program Files\Git\usr\bin\openssl.exe" req -x509 -nodes -days 365 `
+  -newkey rsa:2048 `
+  -keyout infra\nginx\ssl\privkey.pem `
+  -out infra\nginx\ssl\fullchain.pem `
+  -subj "/CN=localhost"
+```
+
+اگر مسیر OpenSSL متفاوت است:
+
+```powershell
+where.exe openssl
+```
+
+---
+
+## ویندوز — روش دوم (Docker)
+
+```powershell
+mkdir infra\nginx\ssl
+
+docker run --rm -v "${PWD}/infra/nginx/ssl:/out" alpine/openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /out/privkey.pem -out /out/fullchain.pem -subj "/CN=localhost"
+```
+
+---
+
+## لینوکس / مک
+
+```bash
+mkdir -p infra/nginx/ssl
+
+openssl req -x509 -nodes -days 365 \
+  -newkey rsa:2048 \
+  -keyout infra/nginx/ssl/privkey.pem \
+  -out infra/nginx/ssl/fullchain.pem \
+  -subj "/CN=localhost"
+```
+
+---
+
+## گواهی SAN برای localhost و api.localhost
+
+### لینوکس / مک
+
+```bash
+openssl req -x509 -nodes -days 365 \
+  -newkey rsa:2048 \
+  -keyout infra/nginx/ssl/privkey.pem \
+  -out infra/nginx/ssl/fullchain.pem \
+  -subj "/CN=localhost" \
+  -addext "subjectAltName=DNS:localhost,DNS:www.localhost,DNS:api.localhost"
+```
+
+### ویندوز
+
+```powershell
+& "C:\Program Files\Git\usr\bin\openssl.exe" req -x509 -nodes -days 365 `
+  -newkey rsa:2048 `
+  -keyout infra\nginx\ssl\privkey.pem `
+  -out infra\nginx\ssl\fullchain.pem `
+  -subj "/CN=localhost" `
+  -addext "subjectAltName=DNS:localhost,DNS:www.localhost,DNS:api.localhost"
+```
+
+---
+
+# ۴. تنظیم دامنه در Nginx Config
+
+جای `PLACEHOLDER-example.com` دامنه خودتان را قرار دهید.
+
+## ویندوز
+
+```powershell
+cd I:\Tuxify\Andromeda\Microservice-infra\Microservice-infra-2
+
+(Get-Content .\infra\nginx\conf.d\default.conf) `
+-replace 'PLACEHOLDER-example.com', 'localhost' |
+Set-Content .\infra\nginx\conf.d\default.conf
+```
+
+## لینوکس / مک
+
+```bash
+cd /path/to/Microservice-infra-2
+
+sed -i 's/PLACEHOLDER-example.com/localhost/g' infra/nginx/conf.d/default.conf
+```
+
+برای localtest.me:
+
+```bash
+sed -i 's/PLACEHOLDER-example.com/localtest.me/g' infra/nginx/conf.d/default.conf
+```
+
+---
+
+# ۵. تنظیم فایل .env
+
+```bash
+cp .env.example .env
+```
+
+---
+
+# ۶. بیلد و اجرا
+
+### فقط سرویس‌ها
+
+```bash
+docker compose up --build
+```
+
+### همراه با PostgreSQL، Redis و SQL Server
+
+```bash
+docker compose --profile infra up --build
+```
+
+### اجرای پس‌زمینه
+
+```bash
+docker compose --profile infra up --build -d
+```
+
+---
+
+# ۷. مایگریشن و ساخت Superuser
+
+## product-service
+
+```bash
+docker exec product-service python manage.py migrate
+docker exec -it product-service python manage.py createsuperuser
+```
+
+سپس:
+
+```text
+http://localhost:8001/admin/
+```
+
+---
+
+## cart-service
+
+```bash
+docker exec cart-service python manage.py migrate
+docker exec -it cart-service python manage.py createsuperuser
+```
+
+سپس:
+
+```text
+http://localhost:8002/admin/
+```
+
+---
+
+# ۸. تست اتصال
+
+## مرورگر
+
+```text
+https://localhost
+https://www.localhost
+https://api.localhost
+http://localhost:8001/admin/
+http://localhost:8002/admin/
+```
+
+> به دلیل Self-Signed بودن SSL، مرورگر هشدار امنیتی نمایش می‌دهد. روی Advanced و سپس Proceed کلیک کنید.
+
+---
+
+## ترمینال
+
+### ویندوز
+
+```powershell
+curl.exe -k --tls-max 1.2 https://localhost
+curl.exe -k --tls-max 1.2 https://api.localhost
+```
+
+### لینوکس / مک
+
+```bash
+curl -k https://localhost
+curl -k https://api.localhost
+```
+
+### تست سرویس‌های داخلی
+
+```bash
+docker exec gateway wget -qO- http://localhost:8080
+
+docker exec product-service python -c "import urllib.request; print(urllib.request.urlopen('http://localhost:8000/admin/').status)"
+```
+
+---
+
+# ۹. توقف
+
+```bash
+docker compose --profile infra down
+```
+
+حذف Volumeها و داده‌های دیتابیس:
+
+```bash
+docker compose --profile infra down -v
+```
+
+---
+
+# ۱۰. عیب‌یابی
+
+| مشکل                                  | راه‌حل                                       |
+| ------------------------------------- | -------------------------------------------- |
+| schannel: server closed abruptly      | `curl.exe -k --tls-max 1.2`                  |
+| nginx: emerg: cannot load certificate | مرحله ساخت SSL انجام نشده                    |
+| .env: not found                       | `cp .env.example .env`                       |
+| پنل ادمین Django باز نمی‌شود          | پورت را Publish کنید و Superuser بسازید      |
+| api.localhost resolve نمی‌شود         | فایل hosts را بررسی کنید                     |
+| خطای dotnet sdk هنگام Build           | `docker builder prune`                       |
+| کانتینر فوراً متوقف می‌شود            | `docker logs <container-name>`               |
+| Frontend صفحه خالی نمایش می‌دهد       | مسیر `/app/dist` را در Dockerfile بررسی کنید |
+| pip WARNING: Running as root          | هشدار غیربحرانی و طبیعی در Docker            |
+
+---
+
+# خلاصه سریع مراحل اجرا
+
+```text
+1. نصب Docker Desktop
+2. ساخت پوشه‌های خالی infra
+3. تنظیم hosts
+4. ساخت SSL
+5. تنظیم nginx
+6. ساخت فایل .env
+7. docker compose --profile infra up --build
+8. migrate + createsuperuser
+9. باز کردن https://localhost
+```
+
+ممنون از همکاری‌تون 🙏
