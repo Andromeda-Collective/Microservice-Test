@@ -1,0 +1,59 @@
+# ──────────────────────────────────────────────
+# Root .gitignore
+# ──────────────────────────────────────────────
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+venv/
+.venv/
+env/
+*.sqlite3
+db.sqlite3
+
+# ── .NET ──
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.pdb
+*.log
+
+# ── Node / Frontend ──
+node_modules/
+dist/
+.next/
+out/
+.npm
+*.tsbuildinfo
+
+# ── Docker / Infra ──
+*.env
+!.env.example
+*.crt
+*.key
+*.p12
+*.pem
+nginx/ssl/
+
+# ── IDE / OS ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Data volumes (local dev) ──
+pgdata/
+sqldata/
+redisdata/

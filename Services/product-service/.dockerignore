@@ -1,0 +1,17 @@
+# ──────────────────────────────────────────────
+# product-service .dockerignore
+# ──────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+.venv/
+env/
+*.sqlite3
+db.sqlite3
+.git/
+.gitignore
+.vscode/
+.idea/
+*.md
+tests/

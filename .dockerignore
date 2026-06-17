@@ -1,0 +1,47 @@
+# ──────────────────────────────────────────────
+# Root .dockerignore — keeps build contexts small
+# ──────────────────────────────────────────────
+
+# Git
+.git
+.gitignore
+
+# CI
+.github
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Documentation
+Docs
+*.md
+!README.md
+
+# Environment & secrets
+.env
+*.env
+!.env.example
+
+# SSL certs (mount at runtime, not in image)
+nginx/ssl
+*.crt
+*.key
+*.pem
+
+# Data volumes
+pgdata
+sqldata
+redisdata
+
+# Build artifacts not needed in image
+**/node_modules
+**/__pycache__
+**/venv
+**/.venv
+**/bin
+**/obj
+**/dist
+**/.next

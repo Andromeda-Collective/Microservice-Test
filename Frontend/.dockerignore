@@ -1,0 +1,13 @@
+# ──────────────────────────────────────────────
+# Frontend .dockerignore
+# ──────────────────────────────────────────────
+node_modules/
+build/
+dist/
+.next/
+.git/
+.vscode/
+.idea/
+*.md
+.env
+.env.local

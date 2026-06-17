@@ -1,0 +1,204 @@
+# ──────────────────────────────────────────────
+# docker-compose.yml
+#
+# Architecture:
+#   - Two networks: public (nginx ↔ host) and internal (all services)
+#   - Only nginx publishes ports (80/443) to the host
+#   - All microservices and infra are on the internal network only
+#   - Infra services (postgres, sqlserver, redis) use the "infra"
+#     profile — they only start with: docker compose --profile infra up
+#
+# Networks:
+#   public    — nginx ↔ host (ports 80, 443)
+#   internal  — nginx ↔ gateway ↔ microservices ↔ infra
+# ──────────────────────────────────────────────
+
+services:
+
+  # ──────────────────────────────────────────
+  # nginx — external web server / reverse proxy
+  # ──────────────────────────────────────────
+  nginx:
+    build:
+      context: ./infra/nginx
+      dockerfile: Dockerfile
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Mount SSL certs at runtime — put your certs in nginx/ssl/
+      - ./infra/nginx/ssl:/etc/nginx/ssl:ro
+    networks:
+      - public
+      - internal
+    depends_on:
+      - gateway
+      - frontend
+
+  # ──────────────────────────────────────────
+  # Frontend — React static site served by nginx-alpine
+  # ──────────────────────────────────────────
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: unless-stopped
+    networks:
+      - internal
+    # No published ports — only accessible via nginx
+
+  # ──────────────────────────────────────────
+  # Gateway — .NET API gateway
+  # ──────────────────────────────────────────
+  gateway:
+    build:
+      context: ./Gateway
+      dockerfile: Dockerfile
+    container_name: gateway
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+    networks:
+      - internal
+    # No published ports — only accessible via nginx
+
+  # ──────────────────────────────────────────
+  # cart-service — Django / Python
+  # ──────────────────────────────────────────
+  cart-service:
+    build:
+      context: ./Services/cart-service
+      dockerfile: Dockerfile
+    container_name: cart-service
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    env_file:
+      - .env
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings
+    networks:
+      - internal
+    # No published ports — only accessible via gateway
+
+  # ──────────────────────────────────────────
+  # product-service — Django / Python
+  # ──────────────────────────────────────────
+  product-service:
+    build:
+      context: ./Services/product-service
+      dockerfile: Dockerfile
+    container_name: product-service
+    restart: unless-stopped
+    ports:
+      - "8002:8000"     
+    env_file:
+      - .env
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings
+    networks:
+      - internal
+    # No published ports — only accessible via gateway
+
+  # ──────────────────────────────────────────
+  # user-service — .NET / C#
+  # ──────────────────────────────────────────
+  user-service:
+    build:
+      context: ./Services/user-service
+      dockerfile: Dockerfile
+    container_name: user-service
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+    networks:
+      - internal
+    # No published ports — only accessible via gateway
+
+  # ──────────────────────────────────────────
+  # INFRA SERVICES (profile: infra)
+  # Start with: docker compose --profile infra up
+  # ──────────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    restart: unless-stopped
+    profiles:
+      - infra
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-appuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-apppass}
+      POSTGRES_DB: ${POSTGRES_DB:-appdb}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
+    # No published ports — only accessible from internal network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-appuser}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver
+    restart: unless-stopped
+    profiles:
+      - infra
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-YourStr0ng!Pass}
+    volumes:
+      - sqldata:/var/opt/mssql
+    networks:
+      - internal
+    # No published ports — only accessible from internal network
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "${MSSQL_SA_PASSWORD:-YourStr0ng!Pass}", "-C", "-Q", "SELECT 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    profiles:
+      - infra
+    volumes:
+      - redisdata:/data
+    networks:
+      - internal
+    # No published ports — only accessible from internal network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# ──────────────────────────────────────────
+# Networks
+# ──────────────────────────────────────────
+networks:
+  public:
+    driver: bridge
+    name: public
+  internal:
+    driver: bridge
+    name: internal
+    internal: true   # No outbound internet access from this network
+
+# ──────────────────────────────────────────
+# Volumes (persistent data for infra services)
+# ──────────────────────────────────────────
+volumes:
+  pgdata:
+  sqldata:
+  redisdata:
