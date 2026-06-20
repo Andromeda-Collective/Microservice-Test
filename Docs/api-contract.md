@@ -230,4 +230,8 @@ HTTP / Events only
 
 # 18. API Documentation
 
-Implementing ...
+API documentation for each service is created and maintained using Bruno.
+
+The documentation process starts when the API documentation is provided by the responsible person to Koorosh for review. After review and approval, the documentation is added to the project documentation under the corresponding service section.
+
+Each service must have its own API documentation, including all required endpoints, request/response details, parameters, and related information.
