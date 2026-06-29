@@ -12,8 +12,8 @@ using User_Service.Data;
 namespace user_service.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260617165703_InitialDb")]
-    partial class InitialDb
+    [Migration("20260628113812_initDb")]
+    partial class initDb
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,6 +24,35 @@ namespace user_service.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("User_Service.AuthEntities.Token", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("ExpireTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("HashRefreshToken")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsValid")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("Tokens");
+                });
 
             modelBuilder.Entity("User_Service.Entities.User", b =>
                 {
@@ -61,36 +90,7 @@ namespace user_service.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("WebAPIControllerBaseApp.AuthEntities.Token", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("ExpireTime")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("HashRefreshToken")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsValid")
-                        .HasColumnType("bit");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId")
-                        .IsUnique();
-
-                    b.ToTable("Tokens");
-                });
-
-            modelBuilder.Entity("WebAPIControllerBaseApp.AuthEntities.Token", b =>
+            modelBuilder.Entity("User_Service.AuthEntities.Token", b =>
                 {
                     b.HasOne("User_Service.Entities.User", "User")
                         .WithMany("Tokens")

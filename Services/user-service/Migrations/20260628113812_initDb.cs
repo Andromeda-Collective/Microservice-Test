@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace user_service.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialDb : Migration
+    public partial class initDb : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

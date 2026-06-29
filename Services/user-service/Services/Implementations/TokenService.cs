@@ -34,13 +34,13 @@ public class TokenService : ITokenService
     }
 
 
-    public async Task<AuthRefreshDto> RefreshAsync(Guid userId)
+    public async Task<AuthRefreshResponseDto> RefreshAsync(Guid userId)
     {
         var jwtToken = _tokenHelper.GenerateToken(userId.ToString());
 
         var refreshToken = await GetAndSaveRefreshTokenAsync(userId);
 
-        return new AuthRefreshDto
+        return new AuthRefreshResponseDto
         {
             JwtToken = jwtToken,
             RefreshToken = refreshToken

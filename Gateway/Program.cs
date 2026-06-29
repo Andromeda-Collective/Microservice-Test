@@ -1,9 +1,25 @@
+
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Default", builder =>
+    {
+        builder.AllowAnyOrigin();
+        builder.AllowAnyHeader();
+        builder.AllowAnyMethod();
+    });
+
+});
+
 var app = builder.Build();
+
+app.UseCors("Default");
 
 app.Use(async (context, next) =>
 {
