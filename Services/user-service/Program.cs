@@ -13,12 +13,10 @@ using User_Service.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    options.UseAzureSql(builder.Configuration.GetConnectionString("Default"));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("Default"));
 });
 
 builder.Services.AddScoped<IUserService, UserService>();
@@ -52,11 +50,12 @@ builder.Services.AddAuthentication(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+using (var scope = app.Services.CreateScope())
 {
-    app.MapOpenApi();
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await db.Database.MigrateAsync();
 }
+
 
 app.UseHttpsRedirection();
 
@@ -77,122 +76,91 @@ app.Use(async (context, next) =>
 
 app.MapPost("/auth/login", async ([FromBody] AuthLoginDto user, [FromServices] IUserService userService, HttpContext http) =>
 {
-    var validationResult = ValidationHelper.HandleValidation(user);
+    var validationResult = ValidationHelper.Validate(user);
     if (validationResult is not null)
-        return validationResult;
+        return ErrorResponse.HandleFailure(Error.Validation(), validationResult);
+
+
+    if (http.User?.Identity?.IsAuthenticated ?? false)
+    {
+        return ErrorResponse.HandleFailure(Error.Conflict("Login.AlreadyLoggedIn", "Cannot login until you logout."));
+    }
 
     var usernameExist = await userService.ExistByUsernameAsync(user.Username);
 
     if (!usernameExist)
     {
-        return ErrorResponse.BadRequest(
-            "validationError)",
-            "The username does not exist",
-            http
-        );
+        return ErrorResponse.HandleFailure(Error.NotFount("Username", "The username does not exist"));
     }
 
     var isPasswordOk = await userService.CheckUserPasswordAsync(user);
 
     if (!isPasswordOk)
     {
-        return ErrorResponse.BadRequest(
-            "VALIDATION_ERROR",
-            "The password is not correct",
-            http
-        );
+        return ErrorResponse.HandleFailure(Error.Validation("Password", "The password is not correct"));
     }
 
     var result = await userService.LoginAsync(user);
 
-    return Results.Ok(
-        new ApiResponse<AuthLoginResponseDto>(
-            result,
-           http.Request.Headers["X-Request-Id"]!
-        )
-    );
+    return Results.Ok(result);
 });
 
 
 app.MapPost("/auth/register", async ([FromBody] AuthRegisterDto user, [FromServices] IUserService userService, HttpContext http) =>
 {
-    var validationResult = ValidationHelper.HandleValidation(user);
+    var validationResult = ValidationHelper.Validate(user);
     if (validationResult is not null)
-        return validationResult;
+        return ErrorResponse.HandleFailure(Error.Validation(), validationResult);
 
     if (http.User?.Identity?.IsAuthenticated ?? false)
     {
-        return ErrorResponse.BadRequest(
-            "VALIDATION_ERROR",
-            "cannot create an account until you logout",
-            http
-        );
+        return ErrorResponse.HandleFailure(Error.Conflict("Register.AlreadyRegistered", "Cannot create an account until you logout"));
     }
     var usernameExist = await userService.ExistByUsernameAsync(user.Username);
 
     if (usernameExist)
     {
-        return ErrorResponse.BadRequest(
-            "VALIDATION_ERROR",
-            "The username is already exist",
-            http
-        );
+        return ErrorResponse.HandleFailure(Error.Conflict("Username", "Username already exists"));
     }
     await userService.AddUserAsync(user);
-    return Results.Ok(
-        new ApiResponse<AuthRegisterDto>(
-            user,
-        http.Request.Headers["X-Request-Id"]!
-        )
-    );
+    return Results.Ok();
 });
 
 
-app.MapPost("/auth/tokens/refresh", async ([FromBody] string refreshToken, [FromServices] TokenService tokenService, HttpContext http) =>
+app.MapPost("/auth/tokens/refresh", async ([FromBody] AuthRefreshDto refresh, [FromServices] ITokenService tokenService, HttpContext http) =>
 {
+    var validationResult = ValidationHelper.Validate(refresh);
+    if (validationResult is not null)
+        return ErrorResponse.HandleFailure(Error.Validation(), validationResult);
+
+
     if (http.User?.Identity?.IsAuthenticated ?? false)
-            return ErrorResponse.BadRequest(
-            "VALIDATION_ERROR",
-            "cannot refresh an account until you logout",
-            http
-        );
+        return ErrorResponse.HandleFailure(Error.Conflict("Refresh.AlreadySingedIn", "Cannot refresh an account until you logout"));
 
-    if (refreshToken is null)
-        return ErrorResponse.BadRequest(
-            "VALIDATION_ERROR",
-            "Invalid refresh token",
-            http
-        );
 
-    var userIdByToken = await tokenService.GetUserIdByValidTokenAsync(refreshToken);
+
+    var userIdByToken = await tokenService.GetUserIdByValidTokenAsync(refresh.RefreshToken);
 
     if (!userIdByToken.HasValue)
     {
-        return ErrorResponse.BadRequest(
-            "VALIDATION_ERROR",
-            "Invalid refresh token, try to login again",
-            http
-        );
+        return ErrorResponse.HandleFailure(Error.Conflict("Refresh.IncorrectRefreshToken", "Invalid refresh token, try to login again"));
     }
 
     var result = await tokenService.RefreshAsync(userIdByToken.Value);
 
-    return Results.Ok(
-        new ApiResponse<AuthRefreshDto>(
-            result,
-        http.Request.Headers["X-Request-Id"]!
-        )
-    );
+    return Results.Ok(result);
 });
 
 
-app.MapGet("/health", () =>
+app.MapGet("auth/health", () =>
 {
     return Results.Ok(new
     {
-        status="ok",
-        service="user-service"
+        status = "ok",
+        service = "user-service"
     });
 });
+
+
 
 app.Run();

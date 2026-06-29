@@ -7,5 +7,5 @@ public interface ITokenService
 {
     Task<string> GetAndSaveRefreshTokenAsync(Guid userId);
     Task<Guid?> GetUserIdByValidTokenAsync(string token);
-    Task<AuthRefreshDto> RefreshAsync(Guid userId);
+    Task<AuthRefreshResponseDto> RefreshAsync(Guid userId);
 }

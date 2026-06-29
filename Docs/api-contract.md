@@ -94,6 +94,7 @@ Example:
 }
 
 The requestId will be sent by the gateway.
+To be sure about the flow, add a guid for x-request-id but if it is not exists in the request.
 
 ---
 
@@ -112,7 +113,8 @@ Example:
    ],
    "page":1,
    "pageSize":20,
-   "total":100
+   "total":100,
+   "totalPage": 5
  },
  "requestId":"abc"
 }
@@ -124,13 +126,13 @@ Example:
 All errors MUST follow:
 
 {
- "type":"ValidationError",
- "title":"Validation Error",
+ "title":"ValidationError",
+ "type":"Field or Prefix.Field",
  "status":400,
  "detail":"Validation failed",
  "errors":[
    {
-     "code":"VALIDATION_ERROR",
+     "code":"Field or Prefix.Field",
      "description":"Field is invalid",
      "type":"Validation"
    }
@@ -142,14 +144,22 @@ This example is for validation errors, you should change parameters by the error
 
 ---
 
-# 9. Common Error Codes
+# 9. Common Title Errors
 
-VALIDATION_ERROR
-UNAUTHORIZED
-FORBIDDEN
-NOT_FOUND
-CONFLICT
-INTERNAL_ERROR
+ValidationError
+Unauthorized
+Forbidden
+NotFound
+Conflict
+InternalError
+
+# 9. Common Error Types
+
+Failure
+Validation
+NotFound
+Conflict
+...
 
 ---
 
